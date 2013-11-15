@@ -1,12 +1,3 @@
-//  ///////////////////////////////////////////////////////////////////////
-//  This is a simple program to test out the pthread package on Linux.
-//  It can be built on a Linux machine with the command line 
-//
-//   gcc  -lpthread  -g -o threads server.c
-//
-//  ///////////////////////////////////////////////////////////////////////
-//
-
 // Ted Meyer
 // 03/11/2013
 
@@ -89,7 +80,7 @@ void* accept_socket(void *data)
     int newsockfd = (int *)data;
 
     n = read(newsockfd,buffer,buffer_size-1);
-    printf("\n\n\n%s\n\n\n\n",buffer);
+    printf("\n\n\n==>%s<==\n\n\n\n",buffer);
     
     char method[5];
     char filename[100];

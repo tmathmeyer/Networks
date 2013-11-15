@@ -8,26 +8,34 @@
 #include <unistd.h>
 #include <errno.h>
 #include <arpa/inet.h> 
+#include "client.h"
 
 
-int get_socket(int port_number, char* ip);
+
 
 int main(int argc, char *argv[])
 {
     if(argc <= 2)
     {
-        perror("ERROR, NO IP PROVIDED");
+        perror("useage: ./client IP/host file_path");
         return 1;
     } 
     int n = 0;
     char recvBuff[1024];
-    memset(recvBuff, '0',sizeof(recvBuff));
+    char ipAddr[100];
 
-    int sockfd = get_socket(8090, "127.0.0.1");
+    printf("\n%s\n", argv[2]);
+
+    memset(recvBuff,0,1024);
+    host_to_ip(argv[1], ipAddr);
 
 
-    write(sockfd, "GET /index.html HTTP/1.1", 24);
+    int sockfd = get_socket(80, ipAddr);
+    //int sockfd = get_socket(80, "127.0.0.1");
 
+    write(sockfd, "GET ", 4);
+    write(sockfd, argv[2], strlen(argv[2]));
+    write(sockfd, " HTTP/1.0\r\n\r\n", 13);
 
     while ( (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0)
     {
@@ -75,4 +83,26 @@ int get_socket(int port_number, char* ip)
 
 
     return sockfd;
+}
+
+char* host_to_ip(char *ptr, char* address)
+{
+    char            **pptr;
+    char            str[INET6_ADDRSTRLEN];
+    struct hostent  *hptr;
+    
+    if ( (hptr = gethostbyname(ptr)) == NULL) {
+        strcpy(address, "127.0.0.1");
+        return;
+    }
+
+    pptr = hptr->h_addr_list;
+    for ( ; *pptr != NULL; pptr++) {
+        strcpy( address,  inet_ntop(hptr->h_addrtype, 
+                       *pptr, str, sizeof(str)));
+        return;
+    }
+
+    strcpy(address, "127.0.0.1");
+        return;
 }

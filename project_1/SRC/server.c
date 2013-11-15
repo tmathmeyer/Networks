@@ -80,7 +80,7 @@ void* accept_socket(void *data)
     int newsockfd = (int *)data;
 
     n = read(newsockfd,buffer,buffer_size-1);
-    printf("\n\n\n%s\n\n\n\n",buffer);
+    printf("\n\n\n==>%s<==\n\n\n\n",buffer);
     
     char method[5];
     char filename[100];
@@ -202,15 +202,33 @@ int get_file_type(char* filename, char* type)
     {
         write_type(type, "image/jpg");
         return 10;
-    } else if (starts_with(allocation, "html"))
+    }
+    else if (starts_with(allocation, "html"))
     {
         write_type(type, "text/html");
         return 10;
-    } else if (starts_with(allocation, "mp3"))
+    }
+    else if (starts_with(allocation, "mp3"))
     {
         write_type(type, "audio/mpeg");
         return 10;
-    } else 
+    }
+    else if (starts_with(allocation, "png"))
+    {
+        write_type(type, "image/png");
+        return 9;
+    }
+    else if (starts_with(allocation, "pdf"))
+    {
+        write_type(type, "application/pdf");
+        return 15;
+    }
+    else if (starts_with(allocation, "mp4"))
+    {
+        write_type(type, "video/mp4");
+        return 9;
+    }
+    else 
     {
         write_type(type, "text/plain");
         return 10;
