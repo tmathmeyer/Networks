@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
     host_to_ip(argv[1], ipAddr);
 
 
-    int sockfd = get_socket(80, ipAddr);
+    int sockfd = get_socket(8090, ipAddr);
     //int sockfd = get_socket(80, "127.0.0.1");
 
     write(sockfd, "GET ", 4);
