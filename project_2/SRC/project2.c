@@ -14,7 +14,7 @@ VERSIONS:
 1.2 - some modifications of the code were made on the web - mostly cleanup.
       I don't quite know all the places they came from.
 2.0 - October 2005 - my modifications - and there are lots of them.  Make
-                     it possible to run on windows. (this was a stupid idea, windows is evil)
+                     it possible to run on windows.
 2.05 - November lots of small things:
               Individual inputs weren't correctly handling decimals
               Sometimes packets weren't really being corrupted.
@@ -23,8 +23,9 @@ VERSIONS:
               debugging levels.
 2.10 - February 2011 - lots of cleanup.
 2.20 - October 2013  - Prep for WPI Class
-2.30 - Novembr 2013 - Enhancements to better support bidirectional 
+2.30 - November 2013 - Enhancements to better support bidirectional 
               and Go Back N
+2.31 - November 2013 - Version released to 3016 class.
 *****************************************************************************/
 
 #include "project2.h"
@@ -71,6 +72,7 @@ struct event *evlist = NULL;   /* the event list */
 #define  TIMER_INTERRUPT 0  
 #define  FROM_LAYER5     1
 #define  FROM_LAYER3     2
+#define  VersionString "2.31"
 
 
 
@@ -95,7 +97,7 @@ int    NumMsgs4To3       = 0;   // number sent into layer 3
 int    NumMsgsLost       = 0;   // number lost in media 
 int    NumMsgsCorrupt    = 0;   // number corrupted by media
 int    NumMsgsOutOfOrder = 0;   // Number messages MAYBE out of order 
-int    NumSimutaneousMsgs= 0;   // How many messages simultaneously in media
+int    NumSimultaneousMsgs= 0;   // How many messages simultaneously in media
 
 // These are sequence numbers used by calling and receiving application layers
 int    GeneratingSeqNum[2] = { 0, 0};  // An array for A side and B side
@@ -112,6 +114,7 @@ void    GenerateNextArrival();
 void    InsertEvent(struct event *);
 void    GetTimeNow( double *);
 void    GetMessageString( int, int, char *); 
+void    printEntireEventQ ( );
 void    SetRandomSeed( long );
 double  GetRandomNumber( );
 
@@ -140,8 +143,10 @@ int main( int argc, char *argv[] )     {
     *************************************************************************/
     while (TRUE) {
         eventptr = evlist;        // get next event to simulate from Q head 
-        if (eventptr==NULL)       //  IF nothing to simulate, we're done  
+        if (eventptr==NULL) {     //  IF nothing to simulate, we're done  
+            if ( TraceLevel >= 5 )  printf("Nothing left to trace\n");
             break;
+    }
 
         evlist = evlist->next;    // remove this event from event list 
         if (evlist != NULL)       //   and sort out forward and back ptrs
@@ -153,9 +158,17 @@ int main( int argc, char *argv[] )     {
         currentEntity = eventptr->eventity;
         // If we've delivered the required number of messages, then we've
         // fullfilled our task and are done.
-        if ( NumMsgs4To5 >= MaxMsgsToSimulate )
+        if ( NumMsgs4To5 >= MaxMsgsToSimulate )  {
+            if ( TraceLevel >= 5 )  printf("Messages have been completed\n");
             break;                            // all done with simulation 
-        
+    }
+         
+    // Print out what's on the Q
+        if ( ( NumMsgs4To5 + 1 ) % (MaxMsgsToSimulate / 3) == 0 )
+            printEntireEventQ ( );
+        if ( TraceLevel >= 5 )    // WIth large trace level, print every time
+            printEntireEventQ ( );
+
         /* *******************************************************************
           Here we've gotten a request to hand data from layer 5 to layer 4.
             Generate the date we want to give to the student.                 
@@ -205,7 +218,7 @@ int main( int argc, char *argv[] )     {
             for ( i = 0; i < MESSAGE_LENGTH; i++)  
                 pkt2give.payload[i] = eventptr->pktptr->payload[i];
 
-            if ( TraceLevel >= 2 )  {     /* Print out trace info if requested */
+            if ( TraceLevel >= 5 )  {     /* Print out trace info if requested */
                 if ( eventptr->eventity == AEntity )   
                     printf("A: " );
                 else
@@ -231,7 +244,7 @@ int main( int argc, char *argv[] )     {
               This is a request for a timer interrupt 
         *********************************************************************/
         else if (eventptr->evtype ==  TIMER_INTERRUPT) {
-            if ( TraceLevel >= 2 )  {     /* Print out trace info if requested */
+            if ( TraceLevel >= 5 )  {     /* Print out trace info if requested */
                 if ( eventptr->eventity == AEntity )   
                     printf("A: " );
                 else
@@ -250,7 +263,6 @@ int main( int argc, char *argv[] )     {
         free(eventptr);
     }                       // End of while
 
-terminate:
     printf("\n\nSimulator terminated at time %f\n after receiving %d msgs at layer5\n",
                   CurrentSimTime, NumMsgs4To5 );
     printf( "Simulator Analysis:\n");
@@ -262,8 +274,8 @@ terminate:
     printf( "  Number of messages incorrectly received at layer 5: %d\n", 
                   NumMsgs5To4WithErr );
     printf( "  Number of packets entering the network: %d\n", NumMsgs4To3 );
-    printf( "  Average number of packets already in network: %6.3f\n",
-               (double)NumSimutaneousMsgs /  (double)NumMsgs4To3 );
+    printf( "  Average number of packets already in network: %9.3f\n",
+               (double)NumSimultaneousMsgs /  (double)NumMsgs4To3 );
     printf( "  Number of packets that the network lost: %d\n", NumMsgsLost );
     printf( "  Number of packets that the network corrupted: %d\n", 
                    NumMsgsCorrupt );
@@ -288,7 +300,7 @@ void init( ) {
     double   TimeNow;
     char     TempString[50];
   
-    printf("-----  Network Simulator Version 2.30 -------- \n\n");
+    printf("-----  Network Simulator Version %6.3s -------- \n\n", VersionString);
     if ( CallingArgc  >= 9 ) {
         MaxMsgsToSimulate      = atoi( CallingArgv[1] );
         LossProb               = atof( CallingArgv[2] );
@@ -303,16 +315,16 @@ void init( ) {
         printf("Enter the number of messages to simulate: ");
         scanf( "%d", &MaxMsgsToSimulate);
         printf("Packet loss probability [enter number between 0.0 and 1.0]: ");
-        scanf( "%s", &TempString );
+        scanf( "%s", TempString );
         LossProb = atof( TempString );
         printf("Packet corruption probability [0.0 for no corruption]: ");
-        scanf( "%s", &TempString );
+        scanf( "%s", TempString );
         CorruptProb = atof( TempString );
         printf("Packet out-of-order probability [0.0 for no out-of-order]: ");
-        scanf( "%s", &TempString );
+        scanf( "%s", TempString );
         OutOfOrderProb = atof( TempString );
         printf("Average time between messages from sender's layer5 [ > 0.0]: ");
-        scanf( "%s", &TempString );
+        scanf( "%s", TempString );
         AveTimeBetweenMsgs     = atof( TempString );
         printf("Enter Level of tracing desired: ");
         scanf( "%d", &TraceLevel);
@@ -359,7 +371,7 @@ void init( ) {
     NumMsgs4To3        = 0;              /* Initialize Counters    */
     NumMsgsLost        = 0;
     NumMsgsCorrupt     = 0;
-    NumSimutaneousMsgs = 0;
+    NumSimultaneousMsgs = 0;
 
     CurrentSimTime = 0.0;                  /* initialize time to 0.0 */
     GenerateNextArrival();     /* initialize event list */
@@ -498,7 +510,7 @@ void GenerateNextArrival()
     /* x is uniform on [0,2*AveTimeBetweenMsgs ] 
        having mean of AveTimeBetweenMsgs */
     x = AveTimeBetweenMsgs *GetRandomNumber()*2; 
-    if ( TraceLevel >= 4)
+    if ( TraceLevel >= 5)
         printf("\tGenerateNextArrival: Creating new arrival at %f from now\n",  x);
 
     evptr = (struct event *)malloc(sizeof(struct event));
@@ -517,7 +529,7 @@ void InsertEvent(p)
 {
     struct event *q,*qold;
 
-    if ( TraceLevel >= 4) 
+    if ( TraceLevel >= 5) 
         printf("\tInsertEvent: Time now is %f.  Future event will be at %f\n", CurrentSimTime, p->evtime );
     
     q = evlist;     /* q points to header of list in which p struct inserted */
@@ -570,13 +582,13 @@ void printevlist()
 ******************************************************************************/
 
 /*****************************************************************************
-   stopTimer Called by students routine to cancel a previously-started timer 
+   stopTimer Called by student's routine to cancel a previously-started timer 
      input -- is A or B trying to stop timer 
 ******************************************************************************/
 void stopTimer(int AorB) {
     struct event *q;
 
-    if ( TraceLevel >= 2 )  {       /* Print out trace info if requested */
+    if ( TraceLevel >= 5 )  {       /* Print out trace info if requested */
         if ( AorB == AEntity ) printf("A: " ); else printf("B: " );
         printf(" %f,", CurrentSimTime );
         printf("  stop timer\n");
@@ -600,7 +612,7 @@ void stopTimer(int AorB) {
            free(q);
            return;
         }                          // END of if q->evtype  
-    if ( TraceLevel >= 2 )         // Print out trace info if requested 
+    if ( TraceLevel >= 5 )         // Print out trace info if requested 
         printf("\tWarning: unable to cancel your timer. It wasn't running.\n");
 }
 
@@ -612,9 +624,8 @@ void stopTimer(int AorB) {
 ******************************************************************************/
 int    getTimerStatus( int AorB ) {
     struct event *q;
-    struct event *evptr;
 
-    for (q=evlist; q!=NULL ; q = q->next) {
+    for (q = evlist; q != NULL ; q = q->next) {
         if ( (q->evtype==TIMER_INTERRUPT  && q->eventity==AorB) ) 
             return( TRUE );            // Event of this type found
     }
@@ -636,15 +647,15 @@ void    startTimer( int AorB, double increment )   {
     struct event *evptr;
 
     // Print out trace info if requested
-    if ( TraceLevel >= 2 )  {       
+    if ( TraceLevel >= 5 )  {       
         if ( AorB == AEntity ) printf("A: " ); else printf("B: " );
         printf(" %11.4f,", CurrentSimTime );
         printf(" start timer\n");
     }
-   // be nice: check to see if timer is already started, if so, then  warn 
+    // be nice: check to see if timer is already started, if so, then  warn 
     for (q=evlist; q!=NULL ; q = q->next)   {
         if ( (q->evtype==TIMER_INTERRUPT  && q->eventity==AorB) ) { 
-            if ( TraceLevel >= 2 )      // Print out trace info if requested */
+            if ( TraceLevel >= 5 )      // Print out trace info if requested */
                 printf("Error in startTimer - the timer is already started\n");
             return;
         }
@@ -679,6 +690,33 @@ int   countMessagesFromThisEntity ( int AorB ) {
     return count;
 }
 /* ***************************************************************************
+   printEntireEventQueue
+   Print everything that's on the event simulation Q.  It lets us examine
+   what the student is doing in their code.
+*****************************************************************************/
+void   printEntireEventQ ( ) {
+    struct event *q;
+    int           i;
+    printf("\nPrinting the contents of the Simulation Event Q\n");
+    
+    for (q = evlist; q != NULL ; q = q->next)   { 
+        printf("Event Time = %8.3f ", q->evtime );
+        if ( q->eventity == AEntity )   printf("A: " ); else printf("B: " );
+        if ( q->evtype == 0 ) printf("Timer    ");
+        if ( q->evtype == 1 ) printf("LAYER 5  ");
+        if ( q->evtype == 2 ) printf("LAYER 3  ");
+    if ( q->evtype == 2 )  {
+            printf( "Seq/Ack/Check = %d/%d/%d:  ", q->pktptr->seqnum,
+                    q->pktptr->acknum,  (unsigned int)(q->pktptr->checksum) );
+            for ( i = 0; i < MESSAGE_LENGTH; i++) 
+                printf("%c", q->pktptr->payload[i]);
+    }
+        printf("\n");
+    }
+    printf("\n");
+}               // End of printEntireEventQ
+
+/* ***************************************************************************
            ******************************* TOLAYER3 ********************
    The student in layer 4 sends a packet here.  And we do
    magical things to it and eventually send it back to layer 4
@@ -697,12 +735,13 @@ void tolayer3( int AorB, struct pkt packet ) {
 
     NumMsgs4To3++;          // Record of packets getting to layer 3 
     // Count how many packets are going to the other guy.
-    NumSimutaneousMsgs = countMessagesFromThisEntity ( (AorB + 1) % 2 );
+    NumSimultaneousMsgs += countMessagesFromThisEntity ( (AorB + 1) % 2 );
+    // printf( "TEMP: %d  %d  %d\n", AorB,  NumMsgs4To3, NumSimultaneousMsgs );
 
 
-    // Make a copy of the packet the student just gave me since he 
+    // Make a copy of the packet the student just gave me since he/she 
     // may decide to do something with the packet after we return back 
-    // to him (lolpoliticalcorrectness) 
+    // to him/her 
     mypktptr = (struct pkt *)malloc(sizeof(struct pkt));
     mypktptr->seqnum = packet.seqnum;
     mypktptr->acknum = packet.acknum;
@@ -710,7 +749,7 @@ void tolayer3( int AorB, struct pkt packet ) {
     for (i=0; i<MESSAGE_LENGTH; i++)
         mypktptr->payload[i] = packet.payload[i];
 
-    if ( TraceLevel >= 2 )  {     // Print out trace info if requested 
+    if ( TraceLevel >= 5 )  {     // Print out trace info if requested 
         if ( AorB == AEntity )   printf("A: " ); else printf("B: " );
         printf(" %11.4f,", CurrentSimTime );
 
@@ -725,7 +764,7 @@ void tolayer3( int AorB, struct pkt packet ) {
     //Simulate losses.  We do this simply by not saving the packet 
     if ( GetRandomNumber() < LossProb )  {
         NumMsgsLost++;          //  Count number of lost packets  
-        if ( TraceLevel > 2 )    {
+        if ( TraceLevel > 5 )    {
             if ( AorB == AEntity )
                 printf("\t<Packet from A: Layer 4 to 3 is being lost>\n" );
             else
@@ -763,7 +802,7 @@ void tolayer3( int AorB, struct pkt packet ) {
         else
             evptr->evtime =  CurrentSimTime + 1   // Put it before the last item on Q
             + ( LastTime - CurrentSimTime ) * GetRandomNumber();
-        if ( TraceLevel > 2 )    {
+        if ( TraceLevel > 5 )    {
             strcpy( WhichSide, "B" );
             if ( AorB == AEntity ) strcpy( WhichSide, "A" );
             printf("\t<Packet from %s: Layer 4 to 3: Last / This Pkt Time = %f / %f\n",
@@ -800,7 +839,7 @@ void tolayer3( int AorB, struct pkt packet ) {
         Temp                   = CharPtr[FirstCharPos];
         CharPtr[FirstCharPos]  = CharPtr[SecondCharPos];
         CharPtr[SecondCharPos] = Temp;
-        if ( TraceLevel >= 3 )    {
+        if ( TraceLevel >= 5 )    {
             if ( AorB == AEntity )
                 printf("A:\tPacket from Layer 4 to 3 is being corrupted\n" );
             else
@@ -808,12 +847,13 @@ void tolayer3( int AorB, struct pkt packet ) {
         }
     }         // End of if GetRandomNumber
 
-    if ( TraceLevel >= 4)  
+    if ( TraceLevel >= 5)  
         printf("\tToLayer3: scheduling arrival on other side\n");
     InsertEvent( evptr );
 } 
 
 /* ***************************************************************************
+   tolayer5()
     Layer 4 has sent data up to layer 5 on the receive side.
     Make sure the data is OK        
 *****************************************************************************/
