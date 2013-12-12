@@ -51,13 +51,23 @@ struct ll {
 };
 
 struct ll* head = 0;
+struct ll* tail = 0;
 
 void enqueue_packet(struct pkt* packet)
 {
 	struct ll* new_head = malloc(sizeof(struct ll));
 	new_head->packet = packet;
-	new_head->next = head;
-	head = new_head;
+	new_head->next = 0;
+	if (head == 0)
+	{
+		head = new_head;
+		tail = new_head;
+	}
+	else
+	{
+		tail->next = new_head;
+		tail = tail->next;
+	}
 }
 
 void clear_packets_before(int last_needed_seq_num)
@@ -65,9 +75,10 @@ void clear_packets_before(int last_needed_seq_num)
 	struct ll* top = head;
 	while(top != 0)
 	{
-		if (top->packet->seqnum < last_needed_seq_num)
+		if (top->packet->seqnum == last_needed_seq_num)
 		{
-			top->next = 0;
+			head = top;
+			return;
 		}
 		top = top->next;
 	}
@@ -86,12 +97,12 @@ void write_all_packets_in_buffer()
 void write_eight_packets_in_buffer(int i)
 {
 	struct ll* top = head;
-	while(top != 0)
+	int c = 0;
+	while(top != 0 && c < 15)
 	{
-		if (top->packet->seqnum - i <= 7)
-		{
-			tolayer3(0, *(top->packet));
-		}
+		c += 1;
+		tolayer3(0, *(top->packet));
+		//printf("acking made me send: %i\n", top->packet->seqnum);
 		top = top->next;
 	}
 }
@@ -176,6 +187,7 @@ void A_input(struct pkt packet) {
 		printf("ACK ON:  %i\n-->last:  %i\n", next_packet, head->packet->seqnum);
 		clear_packets_before(next_packet);
 		write_eight_packets_in_buffer(next_packet);
+		//write_all_packets_in_buffer();
 	}
 
 //	printf("ACK ON:  %i\nCKSM:  %i\n",next_packet, npc);
