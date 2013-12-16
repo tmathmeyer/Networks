@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "project3.h"
 
 extern int TraceLevel;
