@@ -2,6 +2,7 @@
 #include "project3.h"
 
 extern int TraceLevel;
+extern float clocktime;
 
 struct distance_table {
   int costs[MAX_NODES][MAX_NODES];
@@ -12,12 +13,91 @@ struct NeighborCosts   *neighbor2;
 /* students to write the following two routines, and maybe some others */
 
 void rtinit2() {
+    int i,j;
+    for(i = 0; i < MAX_NODES; i++)
+    {
+        for(j = 0; j < MAX_NODES; j++)
+        {
+            dt2.costs[i][j] = 999;
+        }
+    }
+    neighbor2 = getNeighborCosts(2);
 
+    for(i = 0; i < neighbor2->NodesInNetwork; i++)
+    {
+        dt2.costs[i][i] = neighbor2->NodeCosts[i];
+    }
+
+
+
+
+    
+
+    if (TraceLevel >= 0)
+    {
+        printf("At time t=%i, rtinit2() was called.\n", clocktime);
+    }
+
+
+
+    for(i = 0; i < neighbor2->NodesInNetwork; i++)
+    {
+        struct RoutePacket *generated = (struct RoutePacket *) malloc(sizeof(struct RoutePacket));
+        generated->sourceid = 2;
+        generated->destid = i;
+        int i;
+        for(i = 0; i<MAX_NODES; i++)
+        {
+            generated->mincost[i] = getMinFrom(i, dt2);
+        }
+        toLayer2(*generated);
+    }
+
+    printdt1(2, neighbor2, &dt2);
+    printf("\n\n\n");
 }
 
 
 void rtupdate2( struct RoutePacket *rcvdpkt ) {
+    if (TraceLevel >= 0)
+    {
+        printf("At time t=%f, rtupdate2() was called.\n", clocktime);
+    }
 
+
+    int source = rcvdpkt->sourceid;
+    int updates = 0;
+
+    //printf("%i\n", source);
+    int i;
+    for(i = 0; i < MAX_NODES; i++)
+    {
+        updates += setMin(&(dt2.costs[i][source]), rcvdpkt->mincost[i] + dt2.costs[source][source]);
+        //printf("%i ", rcvdpkt->mincost[i]);
+    }
+    //printf("\n");
+    printdt0(2, neighbor2, &dt2);
+
+    if (updates)
+    {
+        for(i = 0; i < neighbor2->NodesInNetwork; i++)
+        {
+            struct RoutePacket *generated = (struct RoutePacket *) malloc(sizeof(struct RoutePacket));
+            generated->sourceid = 2;
+            generated->destid = i;
+            int i;
+            for(i = 0; i<MAX_NODES; i++)
+            {
+                generated->mincost[i] = getMinFrom(i, dt2);
+            }
+            toLayer2(*generated);
+        }
+    }
+}
+
+void finalprint2()
+{
+    printdt0(2, neighbor2, dt2);
 }
 
 

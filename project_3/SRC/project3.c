@@ -61,6 +61,7 @@ double  GetRandomNumber();
 void    insertevent( struct event *p );
 void    init();
 void    rtinit0(), rtinit1(), rtinit2(), rtinit3(), rtinit4(), rtinit5();
+void    finalprint0(), finalprint1(), finalprint2(), finalprint3();
 void    rtupdate0( struct RoutePacket *), rtupdate1( struct RoutePacket *); 
 void    rtupdate2( struct RoutePacket *), rtupdate3( struct RoutePacket *);
 void    rtupdate4( struct RoutePacket *), rtupdate5( struct RoutePacket *);
@@ -131,10 +132,16 @@ int   main( int argc, char *argv[]) {
           free(eventptr->rtpktptr);        /* free memory for packet, if any */
         free(eventptr);                    /* free memory for event struct   */
       }
+
    
 
 terminate:
    printf("\nSimulator terminated at t=%f, no packets in medium\n", clocktime);
+   printf("\n\n\n\nThese are the final states for all packets in the medium\n");
+   finalprint0();
+   finalprint1();
+   finalprint2();
+   finalprint3();
    return(0);
 }
 
